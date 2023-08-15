@@ -50,9 +50,39 @@ def main(args):
         roles = ('user', 'assistant')
     else:
         roles = conv.roles
+    image_tensors = []
+    image = None
+    for image_path in args.image_files:
+        image = load_image(image_path)
+        image_tensors.append(image_processor.preprocess(image, return_tensors='pt')['pixel_values'].half().cuda())
 
-    image = load_image(args.image_file)
-    image_tensor = image_processor.preprocess(image, return_tensors='pt')['pixel_values'].half().cuda()
+    # give example first
+    print("Provide an example for incontext learning")
+    try:
+        inp = input(f"{roles[0]}: ")
+    except EOFError:
+        inp = ""
+    if not inp:
+        print("exit...")
+        return
+    if image is not None:
+        # first message
+        if model.config.mm_use_im_start_end:
+            inp = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN + '\n' + inp
+        else:
+            inp = DEFAULT_IMAGE_TOKEN + '\n' + inp
+        conv.append_message(conv.roles[0], inp)
+    else:
+        conv.append_message(conv.roles[0], inp)
+
+    try:
+        out = input(f"{roles[1]}: ")
+    except EOFError:
+        out = ""
+    if not out:
+        print("exit...")
+        return
+    conv.append_message(conv.roles[1], out)
 
     while True:
         try:
@@ -68,9 +98,9 @@ def main(args):
         if image is not None:
             # first message
             if model.config.mm_use_im_start_end:
-                inp = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN + '\n' + inp
+                inp = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN * (len(image_tensors) - 1) + DEFAULT_IM_END_TOKEN + '\n' + inp
             else:
-                inp = DEFAULT_IMAGE_TOKEN + '\n' + inp
+                inp = DEFAULT_IMAGE_TOKEN * (len(image_tensors) - 1) + '\n' + inp
             conv.append_message(conv.roles[0], inp)
             image = None
         else:
@@ -78,7 +108,6 @@ def main(args):
             conv.append_message(conv.roles[0], inp)
         conv.append_message(conv.roles[1], None)
         prompt = conv.get_prompt()
-
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
         keywords = [stop_str]
@@ -86,9 +115,9 @@ def main(args):
         streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 
         with torch.inference_mode():
-            output_ids = model.generate(
-                input_ids,
-                images=image_tensor,
+            output_ids = model.generate( # the argument to this generate says "images" which makes me think it definitely has the capability of taking in more than one image
+                input_ids,               # its also possible the argument is just reminiscent of a batch images from forward
+                images=image_tensors,    # either way, need to find this function generate
                 do_sample=True,
                 temperature=0.2,
                 max_new_tokens=1024,
@@ -107,7 +136,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, default="facebook/opt-350m")
     parser.add_argument("--model-base", type=str, default=None)
-    parser.add_argument("--image-file", type=str, required=True)
+    parser.add_argument("--image-files", type=str, required=True, nargs='+')
     parser.add_argument("--num-gpus", type=int, default=1)
     parser.add_argument("--conv-mode", type=str, default=None)
     parser.add_argument("--temperature", type=float, default=0.2)

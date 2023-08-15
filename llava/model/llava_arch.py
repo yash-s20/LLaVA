@@ -14,7 +14,7 @@
 
 
 from abc import ABC, abstractmethod
-
+import code
 import torch
 import torch.nn as nn
 
@@ -91,6 +91,8 @@ class LlavaMetaForCausalLM(ABC):
             if past_key_values is not None and vision_tower is not None and images is not None and input_ids.shape[1] == 1:
                 attention_mask = torch.ones((attention_mask.shape[0], past_key_values[-1][-1].shape[-2] + 1), dtype=attention_mask.dtype, device=attention_mask.device)
             return input_ids, attention_mask, past_key_values, None, labels
+        # print(input_ids)
+        # print(type(images))
 
         if type(images) is list or images.ndim == 5:
             concat_images = torch.cat([image for image in images], dim=0)
@@ -104,6 +106,7 @@ class LlavaMetaForCausalLM(ABC):
         new_input_embeds = []
         new_labels = [] if labels is not None else None
         cur_image_idx = 0
+        # code.interact(local=locals())
         for batch_idx, cur_input_ids in enumerate(input_ids):
             if (cur_input_ids == IMAGE_TOKEN_INDEX).sum() == 0:
                 # multimodal LLM, but the current sample is not multimodal
@@ -121,6 +124,7 @@ class LlavaMetaForCausalLM(ABC):
                 cur_new_labels = []
                 assert cur_labels.shape == cur_input_ids.shape
             while image_token_indices.numel() > 0:
+                # print(f"using image idx: {cur_image_idx}")
                 cur_image_features = image_features[cur_image_idx]
                 image_token_start = image_token_indices[0]
                 if getattr(self.config, 'tune_mm_mlp_adapter', False) and getattr(self.config, 'mm_use_im_start_end', False):

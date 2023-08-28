@@ -56,33 +56,6 @@ def main(args):
         image = load_image(image_path)
         image_tensors.append(image_processor.preprocess(image, return_tensors='pt')['pixel_values'].half().cuda())
 
-    # give example first
-    print("Provide an example for incontext learning")
-    try:
-        inp = input(f"{roles[0]}: ")
-    except EOFError:
-        inp = ""
-    if not inp:
-        print("exit...")
-        return
-    if image is not None:
-        # first message
-        if model.config.mm_use_im_start_end:
-            inp = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN + '\n' + inp
-        else:
-            inp = DEFAULT_IMAGE_TOKEN + '\n' + inp
-        conv.append_message(conv.roles[0], inp)
-    else:
-        conv.append_message(conv.roles[0], inp)
-
-    try:
-        out = input(f"{roles[1]}: ")
-    except EOFError:
-        out = ""
-    if not out:
-        print("exit...")
-        return
-    conv.append_message(conv.roles[1], out)
 
     while True:
         try:

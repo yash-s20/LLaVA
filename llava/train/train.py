@@ -21,6 +21,8 @@ import json
 import logging
 import pathlib
 from typing import Dict, Optional, Sequence, List
+import tarfile
+import io
 
 import torch
 
@@ -627,6 +629,10 @@ class LazySupervisedDataset(Dataset):
                  data_args: DataArguments):
         super(LazySupervisedDataset, self).__init__()
         list_data_dict = json.load(open(data_path, "r"))
+        for eg in list_data_dict:
+            if not os.path.exists(eg['tar_path']):
+                print(f"skipping {eg['id']} due to lack of training images")
+        list_data_dict = [eg for eg in list_data_dict if os.path.exists(eg['tar_path'])]
 
         rank0_print("Formatting inputs...Skip in lazy mode")
         self.tokenizer = tokenizer
@@ -641,11 +647,15 @@ class LazySupervisedDataset(Dataset):
         if isinstance(i, int):
             sources = [sources]
         assert len(sources) == 1, "Don't know why it is wrapped to a list"  # FIXME
-        if 'image' in sources[0]:
-            image_file = self.list_data_dict[i]['image']
-            image_folder = self.data_args.image_folder
+        rank0_print(list(sources[0].keys()))
+        if 'tar_path' in sources[0]:
             processor = self.data_args.image_processor
-            image = Image.open(os.path.join(image_folder, image_file)).convert('RGB')
+            with tarfile.open(self.list_data_dict[i]['tar_path']) as tf:
+                image_files = [conv['image'] for conv in self.list_data_dict[i]['conversations'] if 'image' in conv]
+                tarinfos = [tf.getmember(image_file) for image_file in image_files]
+                images = [tf.extractfile(tarinfo) for tarinfo in tarinfos]
+                images = [image.read() for image in images]
+                images = [Image.open(io.BytesIO(image)).convert('RGB') for image in images]
             if self.data_args.image_aspect_ratio == 'pad':
                 def expand2square(pil_img, background_color):
                     width, height = pil_img.size
@@ -659,10 +669,10 @@ class LazySupervisedDataset(Dataset):
                         result = Image.new(pil_img.mode, (height, height), background_color)
                         result.paste(pil_img, ((height - width) // 2, 0))
                         return result
-                image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
-                image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
+                images = [expand2square(image, tuple(int(x*255) for x in processor.image_mean)) for image in images]
+                images = [processor.preprocess(image, return_tensors='pt')['pixel_values'][0] for image in images]
             else:
-                image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
+                images = [processor.preprocess(image, return_tensors='pt')['pixel_values'][0] for image in images]
             sources = preprocess_multimodal(
                 copy.deepcopy([e["conversations"] for e in sources]),
                 self.data_args)
@@ -678,11 +688,13 @@ class LazySupervisedDataset(Dataset):
 
         # image exist in the data
         if 'image' in self.list_data_dict[i]:
-            data_dict['image'] = image
+            data_dict['images'] = images
         elif self.data_args.is_multimodal:
             # image does not exist in the data, but the model is multimodal
             crop_size = self.data_args.image_processor.crop_size
-            data_dict['image'] = torch.zeros(3, crop_size['height'], crop_size['width'])
+            data_dict['images'] = [torch.zeros(3, crop_size['height'], crop_size['width'])] * 1
+            # ideally this should happen
+            assert False, "not in case of epic-k please"
         return data_dict
 
 
@@ -709,14 +721,16 @@ class DataCollatorForSupervisedDataset(object):
             labels=labels,
             attention_mask=input_ids.ne(self.tokenizer.pad_token_id),
         )
-
-        if 'image' in instances[0]:
-            images = [instance['image'] for instance in instances]
+        if 'images' in instances[0]:
+            images = []
+            for instance in instances:
+                images += instance['images']
             if all(x is not None and x.shape == images[0].shape for x in images):
                 batch['images'] = torch.stack(images)
             else:
                 batch['images'] = images
-
+        print(f"number of instances in batch: {len(instances)}")
+        print(f"number of images in batch: {len(images)}")
         return batch
 
 

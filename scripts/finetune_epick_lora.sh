@@ -9,7 +9,7 @@
 
 ################## LLaMA-2 ##################
 PROMPT_VERSION="llava_llama_2"
-MODEL_VERSION="checkpoints/llava-llama-2-7b-chat-lightning-merge"
+MODEL_VERSION="checkpoints/llava-llama-2-7b-chat-hf-lightning-merge"
 # MODEL_VERSION="lmsys/vicuna-7b-v1.3"
 PRETRAIN_NAME=llama-2-7b-chat
 MODEL_NAME="$(basename $MODEL_VERSION)"
@@ -30,9 +30,9 @@ deepspeed llava/train/train_mem.py \
     --bf16 True \
     --output_dir ./checkpoints/$MODEL_NAME-finetune_lora \
     --num_train_epochs 1 \
-    --per_device_train_batch_size 4 \
+    --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 2 \
-    --gradient_accumulation_steps 4 \
+    --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
     --save_steps 50000 \

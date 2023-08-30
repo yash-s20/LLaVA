@@ -66,7 +66,7 @@ class LlavaMetaModel:
             def get_w(weights, keyword):
                 return {k.split(keyword + '.')[1]: v for k, v in weights.items() if keyword in k}
 
-            self.mm_projector.load_state_dict(get_w(mm_projector_weights, 'mm_projector'))
+            self.mm_projector.load_state_dict(get_w(mm_projector_weights, 'mm_projector'), strict=False)
 
 
 class LlavaMetaForCausalLM(ABC):

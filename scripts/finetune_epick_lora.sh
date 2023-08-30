@@ -9,7 +9,7 @@
 
 ################## LLaMA-2 ##################
 PROMPT_VERSION="llava_llama_2"
-MODEL_VERSION="liuhaotian/llava-llama-2-7b-chat-lightning-lora-preview"
+MODEL_VERSION="checkpoints/llava-llama-2-7b-chat-lightning-merge"
 # MODEL_VERSION="lmsys/vicuna-7b-v1.3"
 PRETRAIN_NAME=llama-2-7b-chat
 MODEL_NAME="$(basename $MODEL_VERSION)"
@@ -23,7 +23,7 @@ deepspeed llava/train/train_mem.py \
     --data_path ./playground/epic-k-data/EPIC_100_gpt_output_train_v3.json \
     --image_folder /share/portal/ys749/COCO/train2017 \
     --vision_tower openai/clip-vit-large-patch14 \
-    --pretrain_mm_mlp_adapter ./checkpoints/llava-$MODEL_NAME-pretrain/mm_projector.bin \
+    --pretrain_mm_mlp_adapter ./checkpoints/$PRETRAIN_NAME-pretrain/mm_projector.bin \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \

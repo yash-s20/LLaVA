@@ -15,27 +15,27 @@ PRETRAIN_NAME=llama-2-7b-chat
 MODEL_NAME="$(basename $MODEL_VERSION)"
 ################## LLaMA-2 ##################
 
-deepspeed llava/train/train_mem.py \
+WANDB_MODE="offline" deepspeed llava/train/train_mem.py \
     --deepspeed ./scripts/zero2.json \
     --lora_enable True \
     --model_name_or_path $MODEL_VERSION \
     --version $PROMPT_VERSION \
-    --data_path ./playground/epic-k-data/EPIC_100_gpt_output_train_v3.json \
-    --image_folder /share/portal/ys749/COCO/train2017 \
+    --data_path ./playground/epic-k-data/EPIC_100_dishwash_llava_train_v3.json \
+    --image_folder "" \
     --vision_tower openai/clip-vit-large-patch14 \
     --pretrain_mm_mlp_adapter ./checkpoints/$PRETRAIN_NAME-pretrain/mm_projector.bin \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
     --bf16 True \
-    --output_dir ./checkpoints/$MODEL_NAME-finetune_lora \
-    --num_train_epochs 1 \
-    --per_device_train_batch_size 16 \
+    --output_dir ./checkpoints/$MODEL_NAME-finetune_lora_10 \
+    --num_train_epochs 10 \
+    --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 2 \
-    --gradient_accumulation_steps 1 \
+    --gradient_accumulation_steps 4 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
-    --save_steps 50000 \
+    --save_steps 5000 \
     --save_total_limit 1 \
     --learning_rate 2e-5 \
     --weight_decay 0. \
@@ -45,6 +45,6 @@ deepspeed llava/train/train_mem.py \
     --tf32 True \
     --model_max_length 2048 \
     --gradient_checkpointing True \
-    --dataloader_num_workers 4 \
+    --dataloader_num_workers 2 \
     --lazy_preprocess True \
     --report_to wandb

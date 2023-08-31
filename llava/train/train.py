@@ -647,7 +647,14 @@ class LazySupervisedDataset(Dataset):
         if isinstance(i, int):
             sources = [sources]
         assert len(sources) == 1, "Don't know why it is wrapped to a list"  # FIXME
-        rank0_print(list(sources[0].keys()))
+        header = [{
+            "from": "human",
+            "value": "We are a watching clips of a human washing dishes from an egocentric perspective. Provide what state was observed in the environment by the human and what action is being performed. Format as [state i]...\n[action i]...\n"
+            }, {
+            "from": "gpt",
+            "value": "Sure! I'll be happy to help with that. Let's begin"
+            }
+        ]
         if 'tar_path' in sources[0]:
             processor = self.data_args.image_processor
             with tarfile.open(self.list_data_dict[i]['tar_path']) as tf:
@@ -674,10 +681,10 @@ class LazySupervisedDataset(Dataset):
             else:
                 images = [processor.preprocess(image, return_tensors='pt')['pixel_values'][0] for image in images]
             sources = preprocess_multimodal(
-                copy.deepcopy([e["conversations"] for e in sources]),
+                copy.deepcopy([(header + e["conversations"]) for e in sources]),
                 self.data_args)
         else:
-            sources = copy.deepcopy([e["conversations"] for e in sources])
+            sources = copy.deepcopy([(header + e["conversations"]) for e in sources])
         data_dict = preprocess(
             sources,
             self.tokenizer,
@@ -687,14 +694,12 @@ class LazySupervisedDataset(Dataset):
                              labels=data_dict["labels"][0])
 
         # image exist in the data
-        if 'image' in self.list_data_dict[i]:
+        if 'tar_path' in self.list_data_dict[i]:
             data_dict['images'] = images
         elif self.data_args.is_multimodal:
             # image does not exist in the data, but the model is multimodal
             crop_size = self.data_args.image_processor.crop_size
             data_dict['images'] = [torch.zeros(3, crop_size['height'], crop_size['width'])] * 1
-            # ideally this should happen
-            assert False, "not in case of epic-k please"
         return data_dict
 
 

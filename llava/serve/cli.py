@@ -71,9 +71,9 @@ def main(args):
         if image is not None:
             # first message
             if model.config.mm_use_im_start_end:
-                inp = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN * (len(image_tensors) - 1) + DEFAULT_IM_END_TOKEN + '\n' + inp
+                inp = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN * len(image_tensors) + DEFAULT_IM_END_TOKEN + '\n' + inp
             else:
-                inp = DEFAULT_IMAGE_TOKEN * (len(image_tensors) - 1) + '\n' + inp
+                inp = DEFAULT_IMAGE_TOKEN * len(image_tensors) + '\n' + inp
             conv.append_message(conv.roles[0], inp)
             image = None
         else:

@@ -734,8 +734,8 @@ class DataCollatorForSupervisedDataset(object):
                 batch['images'] = torch.stack(images)
             else:
                 batch['images'] = images
-        print(f"number of instances in batch: {len(instances)}")
-        print(f"number of images in batch: {len(images)}")
+        # print(f"number of instances in batch: {len(instances)}")
+        # print(f"number of images in batch: {len(images)}")
         return batch
 
 

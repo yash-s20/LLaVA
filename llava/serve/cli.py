@@ -109,7 +109,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, default="facebook/opt-350m")
     parser.add_argument("--model-base", type=str, default=None)
-    parser.add_argument("--image-files", type=str, required=True, nargs='+')
+    parser.add_argument("--image-files", type=str, default=[], nargs="*")
     parser.add_argument("--num-gpus", type=int, default=1)
     parser.add_argument("--conv-mode", type=str, default=None)
     parser.add_argument("--temperature", type=float, default=0.2)

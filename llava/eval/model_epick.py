@@ -54,9 +54,6 @@ def eval_model(args):
             image_tk = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN
         else:
             image_tk = DEFAULT_IMAGE_TOKEN
-        conv = conv_templates[args.conv_mode].copy()
-        conv.append_message(conv.roles[0], "We are a watching clips of a human washing dishes from an egocentric perspective. Provide what state was observed in the environment by the human and what action is being performed. Format as [state i]...\n[action i]...\n")
-        conv.append_message(conv.roles[1], "Sure! I'll be happy to help with that. Let's begin\n")
         # conv.append_message(conv.roles[0], qs)
         # conv.append_message(conv.roles[1], None)
         
@@ -67,7 +64,10 @@ def eval_model(args):
             images = [image.read() for image in images]
             images = [Image.open(io.BytesIO(image)).convert('RGB') for image in images]
         image_tensors = [image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0].unsqueeze(0).half().cuda() for image in images]
-        for dialogue in queries:
+        for i, dialogue in enumerate(queries):
+            conv = conv_templates[args.conv_mode].copy()
+            conv.append_message(conv.roles[0], "We are a watching clips of a human washing dishes from an egocentric perspective. Provide what state was observed in the environment by the human and what action is being performed. Format as [state i]...\n[action i]...\n")
+            conv.append_message(conv.roles[1], "Sure! I'll be happy to help with that. Let's begin\n")
             conv.append_message(conv.roles[0], dialogue["value"])
             this_gen = conv.copy()
             this_gen.append_message(this_gen.roles[1], None)
@@ -75,14 +75,14 @@ def eval_model(args):
             # print(prompt)
             prompt.replace("<image>", image_tk)
             input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
-            print((input_ids == IMAGE_TOKEN_INDEX).sum())
+            print((input_ids == IMAGE_TOKEN_INDEX).sum()) # checking to make sure the images are right
             stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
             keywords = [stop_str]
             stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
             with torch.inference_mode():
                 output_ids = model.generate(
                     input_ids,
-                    images=image_tensors,
+                    images=image_tensors[i],
                     do_sample=True,
                     temperature=args.temperature,
                     top_p=args.top_p,

@@ -29,7 +29,7 @@ WANDB_MODE="offline" deepspeed llava/train/train_mem.py \
     --mm_use_im_patch_token False \
     --bf16 True \
     --output_dir ./checkpoints/$MODEL_NAME-finetune_lora_r2_10epochs \
-    --num_train_epochs 10 \
+    --num_train_epochs 30 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 2 \
     --gradient_accumulation_steps 2 \

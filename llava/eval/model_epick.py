@@ -68,12 +68,13 @@ def eval_model(args):
             conv = conv_templates[args.conv_mode].copy()
             conv.append_message(conv.roles[0], "We are a watching clips of a human washing dishes from an egocentric perspective. Provide what state was observed in the environment by the human and what action is being performed. Format as [state i]...\n[action i]...\n")
             conv.append_message(conv.roles[1], "Sure! I'll be happy to help with that. Let's begin\n")
-            conv.append_message(conv.roles[0], dialogue["value"])
+            d = image_tk + dialogue["value"].replace("<image>", "")
+            conv.append_message(conv.roles[0], d)
             this_gen = conv.copy()
             this_gen.append_message(this_gen.roles[1], None)
             prompt = this_gen.get_prompt()
             # print(prompt)
-            prompt.replace("<image>", image_tk)
+            # prompt.replace("<image>", '')
             input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
             print((input_ids == IMAGE_TOKEN_INDEX).sum()) # checking to make sure the images are right
             stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2

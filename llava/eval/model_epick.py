@@ -6,6 +6,7 @@ from tqdm import tqdm
 import shortuuid
 import tarfile
 import io
+from time import sleep
 
 from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from llava.conversation import conv_templates, SeparatorStyle
@@ -46,7 +47,8 @@ def eval_model(args):
     for episode in tqdm(episodes):
         idx = episode["id"]
         tar_file = episode["tar_path"]
-        tar_file = os.path.join(os.path.dirname(tar_file) + '_val', os.path.join(os.path.basename(tar_file)))
+        if "val" in args.val_file:
+            tar_file = os.path.join(os.path.dirname(tar_file) + '_val', os.path.join(os.path.basename(tar_file)))
         queries = episode["conversations"]
         print(idx, tar_file)
         # cur_prompt = qs
@@ -58,32 +60,32 @@ def eval_model(args):
         # conv.append_message(conv.roles[1], None)
         
         with tarfile.open(tar_file) as tf:
-            image_files = [dialogue['image'] for dialogue in queries]
+            image_files = [d['image'] for d in queries if "human" == d["from"]]
             tarinfos = [tf.getmember(image_file) for image_file in image_files]
             images = [tf.extractfile(tarinfo) for tarinfo in tarinfos]
             images = [image.read() for image in images]
             images = [Image.open(io.BytesIO(image)).convert('RGB') for image in images]
+        conv = conv_templates[args.conv_mode].copy()
+        conv.append_message(conv.roles[0], "We are a watching clips of a human washing dishes from an egocentric perspective. For each image, what state was observed in the environment and what action is being performed? Format e.g: [state i]on(`plate_1, `table_1`)\n[action i]pick up plate_1\n")
+        conv.append_message(conv.roles[1], "Sure! I'll be happy to help with that. Let's begin\n")
         image_tensors = [image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0].unsqueeze(0).half().cuda() for image in images]
-        for i, dialogue in enumerate(queries):
-            conv = conv_templates[args.conv_mode].copy()
-            conv.append_message(conv.roles[0], "We are a watching clips of a human washing dishes from an egocentric perspective. Provide what state was observed in the environment by the human and what action is being performed. Format as [state i]...\n[action i]...\n")
-            conv.append_message(conv.roles[1], "Sure! I'll be happy to help with that. Let's begin\n")
+        for i, (dialogue, answer) in enumerate(zip([d for d in queries if "human"==d["from"]], [d for d in queries if "gpt"==d["from"]])):
             d = image_tk + dialogue["value"].replace("<image>", "")
             conv.append_message(conv.roles[0], d)
             this_gen = conv.copy()
             this_gen.append_message(this_gen.roles[1], None)
             prompt = this_gen.get_prompt()
-            # print(prompt)
-            # prompt.replace("<image>", '')
             input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
-            print((input_ids == IMAGE_TOKEN_INDEX).sum()) # checking to make sure the images are right
+            # print((input_ids == IMAGE_TOKEN_INDEX).sum()) # checking to make sure the images are right
             stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
             keywords = [stop_str]
             stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
+            print(prompt)
+            sleep(2)
             with torch.inference_mode():
                 output_ids = model.generate(
                     input_ids,
-                    images=image_tensors[i],
+                    images=image_tensors,
                     do_sample=True,
                     temperature=args.temperature,
                     top_p=args.top_p,
@@ -102,6 +104,7 @@ def eval_model(args):
                 outputs = outputs[:-len(stop_str)]
             outputs = outputs.strip()
             print(outputs)
+            print(answer["value"])
             conv.append_message(conv.roles[1], outputs)
 
         ans_id = shortuuid.uuid()

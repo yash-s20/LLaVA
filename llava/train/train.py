@@ -649,7 +649,7 @@ class LazySupervisedDataset(Dataset):
         assert len(sources) == 1, "Don't know why it is wrapped to a list"  # FIXME
         header = [{
             "from": "human",
-            "value": "We are a watching clips of a human washing dishes from an egocentric perspective. Provide what state was observed in the environment by the human and what action is being performed. Format as [state i]...\n[action i]...\n"
+            "value": "We are a watching clips of a human washing dishes from an egocentric perspective. For each image, what state was observed in the environment and what action is being performed? Format e.g: [state i]on(`plate_1, `table_1`)\n[action i]pick up plate_1\n"
             }, {
             "from": "gpt",
             "value": "Sure! I'll be happy to help with that. Let's begin"

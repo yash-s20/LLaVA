@@ -133,7 +133,9 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
 
         vision_tower = model.get_vision_tower()
         if not vision_tower.is_loaded:
+            print("Loading vision tower...")
             vision_tower.load_model()
+        print("Vision tower loaded")
         vision_tower.to(device='cuda', dtype=torch.float16)
         image_processor = vision_tower.image_processor
 

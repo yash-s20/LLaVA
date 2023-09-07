@@ -688,7 +688,7 @@ class LazySupervisedDataset(Dataset):
         data_dict = preprocess(
             sources,
             self.tokenizer,
-            has_image=('image' in self.list_data_dict[i]))
+            has_image=('tar_path' in self.list_data_dict[i]))
         if isinstance(i, int):
             data_dict = dict(input_ids=data_dict["input_ids"][0],
                              labels=data_dict["labels"][0])

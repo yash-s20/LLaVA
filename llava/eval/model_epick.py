@@ -6,6 +6,7 @@ from tqdm import tqdm
 import shortuuid
 import tarfile
 import io
+from time import sleep
 
 from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from llava.conversation import conv_templates, SeparatorStyle
@@ -48,8 +49,10 @@ def eval_model(args):
 
         idx = episode["id"]
         tar_file = episode["tar_path"]
-        # if "val" in args.val_file:
-        #     tar_file = os.path.join(os.path.dirname(tar_file) + '_val', os.path.join(os.path.basename(tar_file)))
+        
+        if "val" in args.val_file:
+            tar_file = os.path.join(os.path.dirname(tar_file) + '_val', os.path.join(os.path.basename(tar_file)))
+
         queries = episode["conversations"]
         # print(idx, tar_file)
         # cur_prompt = qs
@@ -67,9 +70,11 @@ def eval_model(args):
             images = [image.read() for image in images]
             images = [Image.open(io.BytesIO(image)).convert('RGB') for image in images]
         conv = conv_templates[args.conv_mode].copy()
+
         # removing the header message because we are handling it as system message in conversation.py
         # conv.append_message(conv.roles[0], "We are a watching clips of a human washing dishes from an egocentric perspective. Provide what state was observed in the environment by the human and what action is being performed. Format as [state i]...\n[action i]...\n")
         # conv.append_message(conv.roles[1], "Sure! I'll be happy to help with that. Let's begin\n")
+
         image_tensors = [image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0].unsqueeze(0).half().cuda() for image in images]
         for i, (dialogue, answer) in enumerate(zip([d for d in queries if "human"==d["from"]], [d for d in queries if "gpt"==d["from"]])):
             d = image_tk + dialogue["value"].replace("<image>", "")
@@ -82,8 +87,10 @@ def eval_model(args):
             stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
             keywords = [stop_str]
             stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
+            
             # print(prompt)
-            # input("check prompt")
+            sleep(2)
+            
             with torch.inference_mode():
                 output_ids = model.generate(
                     input_ids,
@@ -109,13 +116,13 @@ def eval_model(args):
             print(outputs)
             print("=============")
             print(answer["value"])
-
             # input("check answer")
+
             conv.append_message(conv.roles[1], outputs)
             out_list.append((outputs, answer["value"]))
 
         ans_id = shortuuid.uuid()
-        
+
         # so that we can save multiple json, one per video
         results_json.append({"question_id": idx,
                                    "prompt": prompt,

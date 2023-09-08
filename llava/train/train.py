@@ -651,6 +651,7 @@ class LazySupervisedDataset(Dataset):
         if isinstance(i, int):
             sources = [sources]
         assert len(sources) == 1, "Don't know why it is wrapped to a list"  # FIXME
+
         # removing the header
         # use system message instead
         # header = [{
@@ -661,6 +662,7 @@ class LazySupervisedDataset(Dataset):
         #     "value": "Sure! I'll be happy to help with that. Let's begin"
         #     }
         # ]
+
         if 'tar_path' in sources[0]:
             processor = self.data_args.image_processor
             with tarfile.open(self.list_data_dict[i]['tar_path']) as tf:

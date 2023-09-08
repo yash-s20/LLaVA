@@ -109,7 +109,7 @@ def eval_model(args):
 
         ans_id = shortuuid.uuid()
         out_file.write(json.dumps({"question_id": idx,
-                                   "prompt": cur_prompt,
+                                   "prompt": conv.get_prompt(),
                                    "text": outputs,
                                    "answer_id": ans_id,
                                    "model_id": model_name,

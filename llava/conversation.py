@@ -68,7 +68,8 @@ class Conversation:
                 if message:
                     if type(message) is tuple:
                         message, _, _ = message
-                    if i == 0: message = wrap_sys(self.system) + message
+                    if i == 0: 
+                        message = wrap_sys(self.system) + message
                     if i % 2 == 0:
                         message = wrap_inst(message)
                         ret += self.sep + message
@@ -264,10 +265,13 @@ If a question does not make any sense, or is not factually coherent, explain why
     sep2="</s>",
 )
 
+# This is the system message for the LLaVA version that we are using
 conv_llava_llama_2 = Conversation(
     system="You are a helpful language and vision assistant. "
-           "You are able to understand the visual content that the user provides, "
-           "and assist the user with a variety of tasks using natural language.",
+           "We are a watching clips of a human washing dishes from an egocentric perspective."
+           "Each time, I will give you an image,"
+           "For each image I gave you, you must provide what environmental state precedes this image and what action is being performed."
+           "You must format your response as [state i]...\n[action i]...\n",
     roles=("USER", "ASSISTANT"),
     version="llama_v2",
     messages=(),

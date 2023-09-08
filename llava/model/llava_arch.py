@@ -92,8 +92,7 @@ class LlavaMetaForCausalLM(ABC):
             if past_key_values is not None and vision_tower is not None and images is not None and input_ids.shape[1] == 1:
                 attention_mask = torch.ones((attention_mask.shape[0], past_key_values[-1][-1].shape[-2] + 1), dtype=attention_mask.dtype, device=attention_mask.device)
             return input_ids, attention_mask, past_key_values, None, labels
-        # print(input_ids)
-        # print(type(images))
+
         if images is None or images == []:
             image_features = None
         elif type(images) is list or images.ndim == 5:
@@ -125,11 +124,14 @@ class LlavaMetaForCausalLM(ABC):
                 cur_labels = labels[batch_idx]
                 cur_new_labels = []
                 assert cur_labels.shape == cur_input_ids.shape
+            # where there are still image_token_indices (still image tokens to replace)
             while image_token_indices.numel() > 0:
                 # print(f"using image idx: {cur_image_idx}")
                 cur_image_features = image_features[cur_image_idx]
                 image_token_start = image_token_indices[0]
+                # print(f"image token start: {image_token_start}")
                 if getattr(self.config, 'tune_mm_mlp_adapter', False) and getattr(self.config, 'mm_use_im_start_end', False):
+                    # as of 9/8, our model doesn't hit this case
                     cur_new_input_embeds.append(self.get_model().embed_tokens(cur_input_ids[:image_token_start-1]).detach())
                     cur_new_input_embeds.append(self.get_model().embed_tokens(cur_input_ids[image_token_start-1:image_token_start]))
                     cur_new_input_embeds.append(cur_image_features)
@@ -140,6 +142,7 @@ class LlavaMetaForCausalLM(ABC):
                         cur_new_labels.append(cur_labels[image_token_start:image_token_start+1])
                         cur_labels = cur_labels[image_token_start+2:]
                 else:
+                    # as of 9/8, we hit this case
                     cur_new_input_embeds.append(self.get_model().embed_tokens(cur_input_ids[:image_token_start]))
                     cur_new_input_embeds.append(cur_image_features)
                     if labels is not None:
@@ -156,6 +159,7 @@ class LlavaMetaForCausalLM(ABC):
                 if getattr(self.config, 'tune_mm_mlp_adapter', False) and getattr(self.config, 'mm_use_im_start_end', False):
                     cur_new_input_embeds.append(self.get_model().embed_tokens(cur_input_ids).detach())
                 else:
+                    # as of 9/8, we hit this case
                     cur_new_input_embeds.append(self.get_model().embed_tokens(cur_input_ids))
                 if labels is not None:
                     cur_new_labels.append(cur_labels)

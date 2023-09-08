@@ -342,6 +342,9 @@ def preprocess_llama_2(
             assert role == conv.roles[j % 2], f"{i}"
             conv.append_message(role, sentence["value"])
         conversations.append(conv.get_prompt())
+        # print(conversations)
+        # input("check conversations")
+        # print("check conversations")
 
     # Tokenize conversations
 
@@ -588,6 +591,7 @@ def preprocess(
     if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.PLAIN:
         return preprocess_plain(sources, tokenizer)
     if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.LLAMA_2:
+        # as of 9/8, this is the case that we are hitting
         return preprocess_llama_2(sources, tokenizer, has_image=has_image)
     if conversation_lib.default_conversation.version.startswith("v1"):
         return preprocess_v1(sources, tokenizer, has_image=has_image)
@@ -647,14 +651,18 @@ class LazySupervisedDataset(Dataset):
         if isinstance(i, int):
             sources = [sources]
         assert len(sources) == 1, "Don't know why it is wrapped to a list"  # FIXME
-        header = [{
-            "from": "human",
-            "value": "We are a watching clips of a human washing dishes from an egocentric perspective. For each image, what state was observed in the environment and what action is being performed? Format e.g: [state i]on(`plate_1, `table_1`)\n[action i]pick up plate_1\n"
-            }, {
-            "from": "gpt",
-            "value": "Sure! I'll be happy to help with that. Let's begin"
-            }
-        ]
+
+        # removing the header
+        # use system message instead
+        # header = [{
+        #     "from": "human",
+        #     "value": "We are a watching clips of a human washing dishes from an egocentric perspective. Provide what state was observed in the environment by the human and what action is being performed. Format as [state i]...\n[action i]...\n"
+        #     }, {
+        #     "from": "gpt",
+        #     "value": "Sure! I'll be happy to help with that. Let's begin"
+        #     }
+        # ]
+
         if 'tar_path' in sources[0]:
             processor = self.data_args.image_processor
             with tarfile.open(self.list_data_dict[i]['tar_path']) as tf:
@@ -681,14 +689,16 @@ class LazySupervisedDataset(Dataset):
             else:
                 images = [processor.preprocess(image, return_tensors='pt')['pixel_values'][0] for image in images]
             sources = preprocess_multimodal(
-                copy.deepcopy([(header + e["conversations"]) for e in sources]),
+                # copy.deepcopy([(header + e["conversations"]) for e in sources]),
+                copy.deepcopy([e["conversations"] for e in sources]),
                 self.data_args)
         else:
-            sources = copy.deepcopy([(header + e["conversations"]) for e in sources])
+            # sources = copy.deepcopy([(header + e["conversations"]) for e in sources])
+            sources = copy.deepcopy([e["conversations"] for e in sources])
         data_dict = preprocess(
             sources,
             self.tokenizer,
-            has_image=('tar_path' in self.list_data_dict[i]))
+            has_image=('tar_path' in self.list_data_dict[i]))  # fix this so that preprocess actually takes the image into account
         if isinstance(i, int):
             data_dict = dict(input_ids=data_dict["input_ids"][0],
                              labels=data_dict["labels"][0])

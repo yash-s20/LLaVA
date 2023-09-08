@@ -43,14 +43,18 @@ def eval_model(args):
     if os.path.dirname(out_file):
         os.makedirs(os.path.dirname(out_file), exist_ok=True)
     out_file = open(args.out_file, 'w')
-    out_list = []
+    results_json = []
     for episode in tqdm(episodes):
+        out_list = []
+
         idx = episode["id"]
         tar_file = episode["tar_path"]
+        
         if "val" in args.val_file:
             tar_file = os.path.join(os.path.dirname(tar_file) + '_val', os.path.join(os.path.basename(tar_file)))
+
         queries = episode["conversations"]
-        print(idx, tar_file)
+        # print(idx, tar_file)
         # cur_prompt = qs
         if model.config.mm_use_im_start_end:
             image_tk = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN
@@ -66,8 +70,11 @@ def eval_model(args):
             images = [image.read() for image in images]
             images = [Image.open(io.BytesIO(image)).convert('RGB') for image in images]
         conv = conv_templates[args.conv_mode].copy()
-        conv.append_message(conv.roles[0], "We are a watching clips of a human washing dishes from an egocentric perspective. For each image, what state was observed in the environment and what action is being performed? Format e.g: [state i]on(`plate_1, `table_1`)\n[action i]pick up plate_1\n")
-        conv.append_message(conv.roles[1], "Sure! I'll be happy to help with that. Let's begin\n")
+
+        # removing the header message because we are handling it as system message in conversation.py
+        # conv.append_message(conv.roles[0], "We are a watching clips of a human washing dishes from an egocentric perspective. Provide what state was observed in the environment by the human and what action is being performed. Format as [state i]...\n[action i]...\n")
+        # conv.append_message(conv.roles[1], "Sure! I'll be happy to help with that. Let's begin\n")
+
         image_tensors = [image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0].unsqueeze(0).half().cuda() for image in images]
         for i, (dialogue, answer) in enumerate(zip([d for d in queries if "human"==d["from"]], [d for d in queries if "gpt"==d["from"]])):
             d = image_tk + dialogue["value"].replace("<image>", "")
@@ -80,8 +87,10 @@ def eval_model(args):
             stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
             keywords = [stop_str]
             stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
-            print(prompt)
+            
+            # print(prompt)
             sleep(2)
+            
             with torch.inference_mode():
                 output_ids = model.generate(
                     input_ids,
@@ -103,17 +112,25 @@ def eval_model(args):
             if outputs.endswith(stop_str):
                 outputs = outputs[:-len(stop_str)]
             outputs = outputs.strip()
+            print("----------------------prediction-----------------------")
             print(outputs)
+            print("=============")
             print(answer["value"])
+            # input("check answer")
+
             conv.append_message(conv.roles[1], outputs)
+            out_list.append((outputs, answer["value"]))
 
         ans_id = shortuuid.uuid()
-        out_file.write(json.dumps({"question_id": idx,
-                                   "prompt": conv.get_prompt(),
-                                   "text": outputs,
+
+        # so that we can save multiple json, one per video
+        results_json.append({"question_id": idx,
+                                   "prompt": prompt,
+                                   "predicted_vs_answer": out_list,
                                    "answer_id": ans_id,
-                                   "model_id": model_name,
-                                   "metadata": {}}) + "\n")
+                                   "model_id": model_name})
+
+    out_file.write(json.dumps(results_json))
     out_file.close()
 
 if __name__ == "__main__":

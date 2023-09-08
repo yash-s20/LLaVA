@@ -70,10 +70,12 @@ def main(args):
 
         if image is not None:
             # first message
-            if model.config.mm_use_im_start_end:
-                inp = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN * len(image_tensors) + DEFAULT_IM_END_TOKEN + '\n' + inp
-            else:
-                inp = DEFAULT_IMAGE_TOKEN * len(image_tensors) + '\n' + inp
+            # if model.config.mm_use_im_start_end:
+            #     inp = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN * len(image_tensors) + DEFAULT_IM_END_TOKEN + '\n' + inp
+            # else:
+            #     inp = DEFAULT_IMAGE_TOKEN * len(image_tensors) + '\n' + inp
+            
+            # make the user be responsible for placing the default token at the right place
             conv.append_message(conv.roles[0], inp)
             image = None
         else:

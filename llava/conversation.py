@@ -269,9 +269,7 @@ If a question does not make any sense, or is not factually coherent, explain why
 conv_llava_llama_2 = Conversation(
     system="You are a helpful language and vision assistant. "
            "We are a watching clips of a human washing dishes from an egocentric perspective."
-           "Each time, I will give you an image,"
-           "For each image I gave you, you must provide what environmental state precedes this image and what action is being performed."
-           "You must format your response as [state i]...\n[action i]...\n",
+           "Each time, I will give you an image.",
     roles=("USER", "ASSISTANT"),
     version="llama_v2",
     messages=(),

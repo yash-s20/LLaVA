@@ -42,15 +42,23 @@ def eval_model(args):
     out_file = os.path.expanduser(args.out_file)
     if os.path.dirname(out_file):
         os.makedirs(os.path.dirname(out_file), exist_ok=True)
-    out_file = open(args.out_file, 'w')
-    results_json = []
+    try:
+        results_json = json.load(open(args.out_file, 'r'))
+    except:
+        results_json = []
+    keys = set([a["id"] for a in results_json])
     for action in tqdm(examples):
         idx = action["id"]
+        if idx in keys:
+            print(f"already done {idx}")
+            continue
         tar_file = action["tar_path"]
         if "val" in args.val_file:
             tar_file = os.path.join(os.path.dirname(tar_file) + '_val', os.path.join(os.path.basename(tar_file)))
-        query = episode["image"]
-        print(idx, tar_file)
+        if not os.path.isfile(tar_file):
+            print(f"skipping {idx} because no training image")
+            continue
+        query = action["image"]
         # cur_prompt = qs
         if model.config.mm_use_im_start_end:
             image_tk = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN
@@ -60,9 +68,9 @@ def eval_model(args):
         # conv.append_message(conv.roles[1], None)
         question = "Describe this image. What objects do you see in the image, how they are positioned with respect to each other, and what action is being performed?"
         with tarfile.open(tar_file) as tf:
-            image_file = image
-            tarinfos = [tf.getmember(image_file) for image_file in image_files]
-            image = [tf.extractfile(tarinfo) for tarinfo in tarinfos]
+            image_file = query
+            tarinfo = tf.getmember(image_file)
+            image = tf.extractfile(tarinfo)
             image = image.read()
             image = Image.open(io.BytesIO(image)).convert('RGB')
         conv = conv_templates[args.conv_mode].copy()
@@ -71,7 +79,7 @@ def eval_model(args):
         # conv.append_message(conv.roles[0], "We are a watching clips of a human washing dishes from an egocentric perspective. Provide what state was observed in the environment by the human and what action is being performed. Format as [state i]...\n[action i]...\n")
         # conv.append_message(conv.roles[1], "Sure! I'll be happy to help with that. Let's begin\n")
 
-        image_tensors = [image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0].unsqueeze(0).half().cuda() for image in images]
+        image_tensor = image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0].unsqueeze(0).half().cuda()
         d = image_tk + question
         conv.append_message(conv.roles[0], d)
         conv.append_message(conv.roles[1], None)
@@ -81,12 +89,10 @@ def eval_model(args):
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
         keywords = [stop_str]
         stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
-        print(prompt)
-        sleep(1)            
         with torch.inference_mode():
             output_ids = model.generate(
                 input_ids,
-                images=image_tensors,
+                images=image_tensor,
                 do_sample=True,
                 temperature=args.temperature,
                 top_p=args.top_p,
@@ -111,9 +117,7 @@ def eval_model(args):
         ans_id = shortuuid.uuid()
         action.update(description=outputs, answer_id=ans_id, model_id=model_name)
         results_json.append(action)
-
-    out_file.write(json.dumps(results_json))
-    out_file.close()
+        json.dump(results_json, open(args.out_file, 'w'), indent=4)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

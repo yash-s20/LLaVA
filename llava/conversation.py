@@ -268,8 +268,8 @@ If a question does not make any sense, or is not factually coherent, explain why
 # This is the system message for the LLaVA version that we are using
 conv_llava_llama_2 = Conversation(
     system="You are a helpful language and vision assistant. "
-           "We are a watching clips of a human washing dishes from an egocentric perspective."
-           "Each time, I will give you an image.",
+           "You are able to understand the visual content that the user provides, "
+           "and assist the user with a variety of tasks using natural language.",
     roles=("USER", "ASSISTANT"),
     version="llama_v2",
     messages=(),

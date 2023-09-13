@@ -15,12 +15,12 @@ PRETRAIN_NAME=llama-2-7b-chat
 MODEL_NAME="$(basename $MODEL_VERSION)"
 ################## LLaMA-2 ##################
 
-WANDB_MODE="offline" deepspeed llava/train/train_mem.py \
+WANDB_MODE="offline" deepspeed --master_port 29600 llava/train/train_mem.py \
     --deepspeed ./scripts/zero2.json \
     --lora_enable True \
     --model_name_or_path $MODEL_VERSION \
     --version $PROMPT_VERSION \
-    --data_path /share/portal/ys749/LLaVA/playground/epic-k-data/EPIC_100_dishwash_llava_train_v8-full.json \
+    --data_path /share/portal/ys749/LLaVA/playground/epic-k-data/EPIC_100_dishwash_llava_train_v9.2-full-5rounds-per-chat_one-image.json \
     --image_folder "" \
     --vision_tower openai/clip-vit-large-patch14 \
     --pretrain_mm_mlp_adapter /share/portal/ys749/LLaVA/checkpoints/$PRETRAIN_NAME-pretrain/mm_projector.bin \
@@ -28,14 +28,15 @@ WANDB_MODE="offline" deepspeed llava/train/train_mem.py \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
     --bf16 True \
-    --output_dir ./checkpoints/$MODEL_NAME-finetune_lora_r2_2ep_v8data \
-    --num_train_epochs 2 \
-    --per_device_train_batch_size 2 \
+    --output_dir ./checkpoints/$MODEL_NAME-finetune_lora_r2_10ep_v9.2_b16_one-image \
+    --num_train_epochs 10 \
+    --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 1 \
-    --gradient_accumulation_steps 8 \
+    --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
-    --save_strategy "epoch" \
-    --save_total_limit 1 \
+    --save_strategy "steps" \
+    --save_steps 5 \
+    --save_total_limit 3 \
     --learning_rate 2e-5 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
@@ -44,7 +45,7 @@ WANDB_MODE="offline" deepspeed llava/train/train_mem.py \
     --tf32 True \
     --model_max_length 2048 \
     --gradient_checkpointing True \
-    --dataloader_num_workers 2 \
+    --dataloader_num_workers 1 \
     --lazy_preprocess True \
     --report_to wandb \
     --lora_r 2

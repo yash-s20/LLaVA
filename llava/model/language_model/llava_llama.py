@@ -26,6 +26,8 @@ from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from ..llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
 
+from time import sleep
+
 
 class LlavaConfig(LlamaConfig):
     model_type = "llava"

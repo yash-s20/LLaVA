@@ -281,6 +281,23 @@ conv_llava_llama_2 = Conversation(
     sep2="</s>",
 )
 
+conv_llava_assistant = Conversation(
+    system="You are a helpful language and vision assistant. "
+           "Each time, the user will provide an image and a list of objects that are highly likely to appear in the image. "
+           "Not all objects might show up in the image because there could be occlusion. "
+           "However, you are not allowed to create any image. "
+           "You must only use a subset of the list of objects that the user provides. "
+           "You goal is to describe the scene using these objects, "
+           "and provide truthful, helpful, detailed answers to the user's questions.",
+    roles=("USER", "ASSISTANT"),
+    version="llama_v2",
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.LLAMA_2,
+    sep="<s>",
+    sep2="</s>",
+)
+
 conv_mpt = Conversation(
     system="""<|im_start|>system
 A conversation between a user and an LLM-based AI assistant. The assistant gives helpful and honest answers.""",
@@ -366,6 +383,7 @@ conv_templates = {
     "llava_v1": conv_llava_v1,
     "v1_mmtag": conv_llava_v1_mmtag,
     "llava_llama_2": conv_llava_llama_2,
+    "llava_as_assistant": conv_llava_assistant, 
 
     "mpt": conv_mpt,
 }

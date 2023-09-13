@@ -38,6 +38,7 @@ from llava.mm_utils import tokenizer_image_token
 
 from PIL import Image
 
+import time
 
 local_rank = None
 
@@ -665,14 +666,22 @@ class LazySupervisedDataset(Dataset):
 
         if 'tar_path' in sources[0]:
             processor = self.data_args.image_processor
-            with tarfile.open(self.list_data_dict[i]['tar_path']) as tf:
-                image_files = [conv['image'] for conv in self.list_data_dict[i]['conversations'] if 'image' in conv]
-                tarinfos = [tf.getmember(image_file) for image_file in image_files]
-                images = [tf.extractfile(tarinfo) for tarinfo in tarinfos]
-                images = [image.read() for image in images]
-                images = [Image.open(io.BytesIO(image)).convert('RGB') for image in images]
+            start_time = time.time()
+            # with tarfile.open(self.list_data_dict[i]['tar_path']) as tf:
+            #     image_files = [conv['image'] for conv in self.list_data_dict[i]['conversations'] if 'image' in conv]
+            #     tarinfos = [tf.getmember(image_file) for image_file in image_files]
+            #     images = [tf.extractfile(tarinfo) for tarinfo in tarinfos]
+            #     images = [image.read() for image in images]
+            #     images = [Image.open(io.BytesIO(image)).convert('RGB') for image in images]
+
+            image_files = [conv['image'] for conv in self.list_data_dict[i]['conversations'] if 'image' in conv]
+            print(image_files)
+            folder_path, _, _ = self.list_data_dict[i]['tar_path'].partition(".tar")
+            print(folder_path)
+            images = [Image.open(os.path.join(folder_path, image)).convert('RGB') for image in image_files]
+            print(f"================={time.time() - start_time}=================")
             if self.data_args.image_aspect_ratio == 'pad':
-                def expand2square(pil_img, background_color):
+                def expand2square(pil_img,background_color):
                     width, height = pil_img.size
                     if width == height:
                         return pil_img
@@ -767,6 +776,11 @@ def train():
     parser = transformers.HfArgumentParser(
         (ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+
+    print(list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")))
+    # input("stop")
+
+
     local_rank = training_args.local_rank
     compute_dtype = (torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32))
 

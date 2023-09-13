@@ -96,6 +96,9 @@ class Conversation:
     def append_message(self, role, message):
         self.messages.append([role, message])
 
+    def replace_sys_msg(self, new_sys_msg):
+        self.system = new_sys_msg
+
     def get_images(self, return_pil=False):
         images = []
         for i, (role, msg) in enumerate(self.messages[self.offset:]):

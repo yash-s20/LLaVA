@@ -1,0 +1,19 @@
+prompt_name: v1b-0
+generate_all: False
+generate_from_id:
+  - P18_02
+images_to_use:
+  - start_image
+prompt:
+  system: |
+    You are a helpful language and vision assistant. Each time, the user will provide a first-person, egocentric image and a list of objects that are highly likely to appear in the image. Not all objects might show up in the image because they could be occluded. You should not describe any objects that are not listed. In your responses, you must only mention objects in the initial object list provided by the user.  Your goal is to describe the scene using these objects and provide helpful, detailed, specific answers to the user's questions. 
+  query_template:
+  - '<image>/nThese objects might be in the image <obj_list>. What is the physical status of these objects? Some status could be: "something is cut", "something is cooked", "something is open", "something is closed", "something is empty", etc. You can choose from the examples or define other positional relationships.'
+  - 'What are the positional relationships between these objects? Some positional relationships could be: "A is on top of B", "A is to the left of B", "A is to the right of B", "A is in front of B", "A is behind B", "A is inside B". You can choose from the examples or define other positional relationships.'
+  - 'Where is the human in the image?' 
+  - 'What is the relationship between the person and the item? For example, is the human holding something? Is the human using something?' 
+  - 'What is the person doing in this image? Some actions could be: "picking up something", "placing down something", "turn on something", "turn off something", "wash something", "cut something", "cook something", "stir something", etc. You can choose from these example actions or define other actions.'
+model_path: /share/portal/ys749/LLaVA/checkpoints/llava-llama-2-7b-chat-hf-lightning-merge
+data_path: /share/portal/hw575/LLaVA/playground/epic-k-data/epic-k_val_obj-list_data.json
+overall_outputs_folder: /share/portal/hw575/LLaVA/outputs/
+conv_mode: llava_as_assistant

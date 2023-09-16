@@ -66,7 +66,7 @@ def eval_model(args):
             image_tk = DEFAULT_IMAGE_TOKEN
         # conv.append_message(conv.roles[0], qs)
         # conv.append_message(conv.roles[1], None)
-        question = "Describe this image. What objects do you see in the image, how they are positioned with respect to each other, and what action is being performed?"
+        question = "Briefly describe this image. What objects do you see, how they are positioned with respect to each other, and what action is being performed by the human?"
         with tarfile.open(tar_file) as tf:
             image_file = query
             tarinfo = tf.getmember(image_file)

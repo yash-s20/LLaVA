@@ -35,14 +35,14 @@ class LLaVAQuery():
         self.temp = temp
         self.num_beams = num_beams
 
-    def query_one(self, image: Image.Image, system_msg: str, question: str) -> str:
+    def query_one(self, image: Image.Image, system_msg: str, question: str, return_conv: bool = False) -> str:
         conversation = [{
             "from": "USER",
             "value": question
         }]
-        return self.query_conv(image, system_msg, conversation)
+        return self.query_conv(image, system_msg, conversation, return_conv)
     
-    def query_conv(self, image: Image.Image, system_msg: str, conversation: List[Dict[str, str]]) -> str:
+    def query_conv(self, image: Image.Image, system_msg: str, conversation: List[Dict[str, str]], return_conv: bool = False) -> str:
         """
         conversation: a list with json formatted dialogues.
                       roles should be specific to the conv mode chosen.
@@ -98,4 +98,10 @@ class LLaVAQuery():
         if answer.endswith(stop_str):
             answer = answer[:-len(stop_str)]
         answer = answer.strip()
+        if return_conv:
+            ret_conv = conversation.copy()
+            ret_conv.append({
+                "from": conv.roles[1],
+                "value": answer})
+            return answer, ret_conv
         return answer

@@ -25,28 +25,44 @@ def get_chunk(lst, n, k):
 
 
 class LLaVAQuery():
-    def __init__(self, model_path: str, conv_mode: str = 'llava_llama_2', top_p: Optional[int] = None, temp: Optional[float] = None) -> None:
+    def __init__(self, model_path: str, conv_mode: str = 'llava_llama_2', top_p: Optional[int] = None, temp: float = 0.2, num_beams: int = 1) -> None:
         disable_torch_init()
         model_path = os.path.expanduser(model_path)
         model_name = get_model_name_from_path(model_path)
         self.tokenizer, self.model, self.image_processor, self.context_len = load_pretrained_model(model_path, None, model_name)
         self.conv_mode = conv_mode
+        self.top_p = top_p
+        self.temp = temp
+        self.num_beams = num_beams
 
     def query_one(self, image: Image.Image, system_msg: str, question: str) -> str:
-        return ("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et "
-                "dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip "
-                "ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu "
-                "fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt "
-                "mollit anim id est laborum.")
-
+        conversation = [{
+            "from": "USER",
+            "value": question
+        }]
+        return self.query_conv(image, system_msg, conversation)
     
     def query_conv(self, image: Image.Image, system_msg: str, conversation: List[Dict[str, str]]) -> str:
         """
-        conversation: a list with json formatted dialogues. roles should be specific to the conv mode chosen. e.g.:
-                      {
+        conversation: a list with json formatted dialogues.
+                      roles should be specific to the conv mode chosen.
+                      only first question should have image token.
+                      last dialogue should always be human (here USER)
+                      e.g.:
+                      [{
                         "from": "USER"
-                        "
+                        "value": "<image> [[question 1]]"
+                      },
+                      {
+                        "from": "ASSISTANT"
+                        "value": "[[answer 1]]"
+                      },
+                      ...
+                        "from": "USER"
+                        "value": "<image> [[question N]]"
                       }
+                      ]
+
         """
         conv = conv_templates[self.conv_mode].copy()
         conv.system = system_msg
@@ -57,19 +73,29 @@ class LLaVAQuery():
             image_tk = DEFAULT_IMAGE_TOKEN
         for dialogue in conversation:
             conv.append_message(dialogue['from'], dialogue['value'].replace('<image>', image_tk))
+        conv.append_message(conv.roles[1], None)
         prompt = conv.get_prompt()
         input_ids = tokenizer_image_token(prompt, self.tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
         keywords = [stop_str]
         with torch.inference_mode():
-        with torch.inference_mode():
-            output_ids = model.generate(
+            output_ids = self.model.generate(
                 input_ids,
                 images=image_tensor,
                 do_sample=True,
-                temperature=args.temperature,
-                top_p=args.top_p,
-                num_beams=args.num_beams,
+                temperature=self.temp,
+                top_p=self.top_p,
+                num_beams=self.num_beams,
                 # no_repeat_ngram_size=3,
                 max_new_tokens=1024,
                 use_cache=True)
+        input_token_len = input_ids.shape[1]
+        n_diff_input_output = (input_ids != output_ids[:, :input_token_len]).sum().item()
+        if n_diff_input_output > 0:
+            print(f'[Warning] {n_diff_input_output} output_ids are not the same as the input_ids')
+        outputs = self.tokenizer.batch_decode(output_ids[:, input_token_len:], skip_special_tokens=True)[0]
+        answer = outputs.strip()
+        if answer.endswith(stop_str):
+            answer = answer[:-len(stop_str)]
+        answer = answer.strip()
+        return answer

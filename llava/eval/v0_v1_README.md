@@ -49,7 +49,7 @@ srun --partition=gpu-interactive --gres=gpu:a6000:1 --nodes=1 --ntasks=1 --mem=5
 - "image_to_use": has to be one of ["start_image", "end_image"]. We should just use "start_image"! This is the image that LLaVA will look at for each timestep. 
 - "prompt"
     - "system": system message to LLaVA. 
-    - "query_template": a list of questions to ask LLaVA. <image> tag and <obj_list> must be in the first question. 
+    - "query_template": a list of questions to ask LLaVA. <image> tag and <obj_list> must be in the first question. **(For v0, this should just be one question!)**
 - "model_path": path to the LLaVA model (shouldn't need to change)
 - "data_path": path to the raw data (shound't need to change on a regular basis)
 - "overall_outputs_folder": path to the output folder (shound't need to change on a regular basis)

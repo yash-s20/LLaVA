@@ -22,6 +22,11 @@ import yaml
 
 SETTINGS_YAML_PATH = os.path.join(os.path.dirname(__file__), "latest_config.yaml")
 
+# complete list (including super long videos that we are not going to test)
+# ALL_EP_ID_TO_TEST = ['P01_14', 'P02_12', 'P03_22', 'P03_23', 'P03_24', 'P04_24', 'P04_25', 'P04_33', 'P06_10', 'P06_11', 'P06_12', 'P06_13', 'P06_14', 'P08_09', 'P08_16', 'P08_17', 'P09_07', 'P12_03', 'P18_01', 'P18_02', 'P18_03', 'P18_06', 'P18_07', 'P22_01', 'P23_05', 'P24_09', 'P30_07']
+# actual list to generate result
+ALL_EP_ID_TO_TEST = ['P03_22', 'P03_23', 'P04_24', 'P04_25', 'P04_33', 'P06_10', 'P06_11', 'P06_12', 'P06_13', 'P06_14', 'P08_16', 'P08_17', 'P09_07', 'P18_01', 'P18_02', 'P18_03', 'P18_06', 'P18_07', 'P23_05', 'P30_07']
+
 def str_presenter(dumper, data):
     """configures yaml for dumping multiline strings
     Ref: https://stackoverflow.com/questions/8640959/how-can-i-control-what-scalar-form-pyyaml-uses-for-my-data"""
@@ -52,11 +57,20 @@ def make_all_dir(prompt_name, outputs_main_folder):
 
     return main_folder_path
 
+def get_clean_object_list(obj_list):
+    clean_obj_list = [o.strip() for o in obj_list]
+
+    for hand_name in ["left hand", "right hand"]:
+        if hand_name in clean_obj_list:
+            clean_obj_list = [o.replace(hand_name, "hand") for o in clean_obj_list]
+
+    return list(set(clean_obj_list))
+
 def query_llava_about_one_video(ep_id, all_data_dict, overall_conv_template, 
                                 model_name, tokenizer, model, image_processor, 
                                 outputs_folder, args, settings_dict):
     # create result json or load from last time
-    out_filepath = os.path.join(outputs_folder, f'{settings_dict["prompt_name"]}_{ep_id}_desc.json')
+    out_filepath = os.path.join(outputs_folder, f'{settings_dict["llava_prompt_name"]}_{ep_id}_desc.json')
 
     if os.path.exists(out_filepath) and not args.full_restart:
         # load it from last time
@@ -70,6 +84,7 @@ def query_llava_about_one_video(ep_id, all_data_dict, overall_conv_template,
         results_json = {
             "meta_data": {
                 "model": model_name,
+                "image_to_use": settings_dict["images_to_use"],
                 "sys_msg": settings_dict["prompt"]["system"],
                 "query_template": settings_dict["prompt"]["query_template"],
             },
@@ -110,12 +125,15 @@ def query_llava_about_one_video(ep_id, all_data_dict, overall_conv_template,
     query_template = settings_dict["prompt"]["query_template"]
 
     # start querying LLaVA
-    for i in tqdm(range(len(frame_list))):
+    # from https://stackoverflow.com/questions/37506645/can-i-add-message-to-the-tqdm-progressbar
+    for i in (pbar := tqdm(range(len(frame_list)))):
         frame_data = frame_list[i]
         
         conv = overall_conv_template.copy()
         raw_outputs = []
         full_description = ""
+
+        pbar.set_description(f"id: {frame_data['id']}")
 
         if frame_data["id"] not in results_json[ep_id]:
             image_to_use = images[i]
@@ -127,7 +145,8 @@ def query_llava_about_one_video(ep_id, all_data_dict, overall_conv_template,
 
             for j in range(len(query_template)):
                 question = query_template[j]
-                question = question.replace("<obj_list>", str(frame_data["objects"]))
+                # add object list to the question
+                question = question.replace("<obj_list>", str(get_clean_object_list(frame_data["objects"])))
 
                 # add the quesiton to the conversation
                 conv.append_message(conv.roles[0], question)
@@ -136,8 +155,8 @@ def query_llava_about_one_video(ep_id, all_data_dict, overall_conv_template,
                 this_gen.append_message(this_gen.roles[1], None)
                 prompt = this_gen.get_prompt()
 
-                # print(prompt)
-                # input("check prompt")
+                if i == 0:
+                    print(prompt)
 
                 input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
 
@@ -198,7 +217,7 @@ def query_llava_about_one_video(ep_id, all_data_dict, overall_conv_template,
 
 
 def query_llava_about_videos(args, settings_dict):
-    outputs_folder = make_all_dir(settings_dict["prompt_name"], settings_dict["overall_outputs_folder"])
+    outputs_folder = make_all_dir(settings_dict["llava_prompt_name"], settings_dict["overall_outputs_folder"])
 
     # Model
     disable_torch_init()
@@ -212,7 +231,17 @@ def query_llava_about_videos(args, settings_dict):
     overall_conv_template = conv_templates[settings_dict["conv_mode"]].copy()
     overall_conv_template.replace_sys_msg(settings_dict["prompt"]["system"].strip())
 
-    for ep_id in settings_dict["generate_from_id"]:
+    ep_id_to_generate = settings_dict["generate_from_id"]
+    if settings_dict["generate_all"]:
+        if input("Warning: you are about to generate result for all videos. Are you sure (y/n)? ") != "y":
+            sys.exit()
+        else:
+            ep_id_to_generate = ALL_EP_ID_TO_TEST
+
+    # from https://stackoverflow.com/questions/37506645/can-i-add-message-to-the-tqdm-progressbar
+    for ep_id in (pbar := tqdm(ep_id_to_generate)):
+        pbar.set_description(f"Video: {ep_id}")
+
         query_llava_about_one_video(ep_id, all_data_dict, overall_conv_template, 
                                     model_name, tokenizer, model, image_processor, 
                                     outputs_folder, args, settings_dict)
@@ -222,6 +251,12 @@ if __name__ == "__main__":
     print("Reading from YAML file...")
     with open(SETTINGS_YAML_PATH, "r") as f:
         settings_dict = yaml.safe_load(f)
+
+    # save a copy of the yaml file if we haven't done it
+    yaml_path = os.path.join(os.path.dirname(__file__), "yaml_archive", f"{settings_dict['llava_prompt_name']}.yaml")
+
+    with open(yaml_path, "w") as fout:
+        yaml.dump(settings_dict, fout)
 
     if len(settings_dict["images_to_use"]) != 1:
         print("Error: currently only support adding one image")

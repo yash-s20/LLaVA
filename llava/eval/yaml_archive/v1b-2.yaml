@@ -1,0 +1,39 @@
+conv_mode: llava_as_assistant
+data_path: /share/portal/hw575/LLaVA/playground/epic-k-data/epic-k_val_obj-list_data.json
+generate_all: true
+generate_from_id:
+- P18_02
+images_to_use:
+- start_image
+llava_prompt_name: v1b-2
+model_path: /share/portal/ys749/LLaVA/checkpoints/llava-llama-2-7b-chat-hf-lightning-merge
+overall_outputs_folder: /share/portal/hw575/LLaVA/outputs/
+prompt:
+  query_template:
+  - '<image>/nThe list of objects that might be in this image is: <obj_list>. What
+    are the positional relationships between only these objects? For example: "A is
+    on top of B", "A is to the left of B", "A is to the right of B", "A is in front
+    of B", "A is behind B", "A is inside B". You can choose from the examples or define
+    new positional relationships.'
+  - 'Only using the objects from the list in the first question, what is the physical
+    status or property of these objects? For example: "A is cut", "A is cooked", "A
+    is open", "A is closed", "A is empty", etc. You can choose from the examples or
+    define new ones.'
+  - Only using the objects from the list in the first question, what is the relationship
+    between the person and those objects? For example, "is the person holding something",
+    "is the person using something", etc. You can choose from the examples or define
+    new relationships.
+  - 'This image is at the end of when the person does an action. What action is the
+    person finishing doing in this image? You must not answer what the person might
+    do next. You should infer and answer what the person is about to finish doing
+    or just finished doing. Some actions could be: "picking up something", "placing
+    down something", "turn on something", "turn off something", "wash something",
+    "cut something", "cook something", "stir something", etc. You can choose from
+    these example actions or define new actions.'
+  system: "You are a helpful language and vision assistant. Each time, the user will\
+    \ provide a first-person, egocentric image and a list of objects that are highly\
+    \ likely to appear in the image. Not all objects might show up in the image because\
+    \ they could be occluded. You should not describe any objects that are not listed.\
+    \ In your responses, you must only mention objects in the initial object list\
+    \ provided by the user.  Your goal is to describe the scene using these objects\
+    \ and provide helpful, detailed, specific answers to the user's questions. \n"
